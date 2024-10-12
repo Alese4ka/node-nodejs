@@ -85,10 +85,12 @@ const remove = (dirPath) => {
               console.log('Operation failed');
             });
           } else {
+            console.log('kdshjfhdkfj')
             console.log('Operation failed');
           }
       }); 
     } catch (err) {
+      console.log('1')
       console.log('Operation failed');
     }
 };
@@ -114,8 +116,9 @@ const initApp = () => {
       const rn = data.toString().includes('rn');
       const cp = data.toString().includes('cp');
       const mv = data.toString().includes('mv');
+      const rm = data.toString().includes('rm');
 
-      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv) {
+      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm) {
         console.log('Invalid input')
       }
 
@@ -191,11 +194,17 @@ const initApp = () => {
         remove(folderFilePath);
       }
 
+      if (rm) {
+        const delFilePath = path.join(data.toString().substring(3).trim());
+        remove(delFilePath);
+      }
+
       if (data.toString().includes('.exit')) {
         console.log('Thank you for using File Manager, Username, goodbye!');
         process.exit();
       }
 
+      //after logic
       console.log(`You are currently in ${userHomeDir}`);
     });
 
