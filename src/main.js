@@ -2,7 +2,8 @@ import path from 'path';
 import os from 'node:os';
 import fs from 'node:fs';
 import stream from 'stream';
-import crypto from 'crypto'
+import crypto from 'crypto';
+import zlib from 'node:zlib';
 
 let userHomeDir = os.homedir();
 
@@ -32,6 +33,7 @@ const list = (userHomeDir) => {
               });
 
               console.table(table, ["Name", "Type"]); 
+              console.log(`You are currently in ${userHomeDir}`);
           } else {
               console.log('Operation failed');
           }
@@ -41,13 +43,14 @@ const list = (userHomeDir) => {
     }
 };
 
-const create = (userHomeDir) => {
+const create = (dir) => {
   try {
-      fs.exists(userHomeDir, (e) => {
+      fs.exists(dir, (e) => {
           if (e) {
             console.log('Operation failed');
           } else {
-            fs.writeFileSync(userHomeDir, '');
+            fs.writeFileSync(dir, '');
+            console.log(`You are currently in ${path.dirname(dir)}`);
           }
       }); 
     } catch (err) {
@@ -67,6 +70,7 @@ const rename = async (wrongNameFilePath, newNameFilePath) => {
                           if (err) {
                             console.error(err);
                           }
+                          console.log(`You are currently in ${path.dirname(newNameFilePath)}`);
                         });
                   }
               }); 
@@ -79,13 +83,14 @@ const rename = async (wrongNameFilePath, newNameFilePath) => {
     }
 };
 
-const remove = (dirPath) => {
+const remove = (dirPath, newDirPath) => {
   try {
       fs.exists(dirPath, (e) => {
           if (e) {
             fs.rmSync(dirPath, { recursive: true }, (err) => {
               console.log('Operation failed');
             });
+            console.log(`You are currently in ${newDirPath ? path.dirname(newDirPath) : path.dirname(dirPath)}`);
           } else {
             console.log('Operation failed');
           }
@@ -95,7 +100,7 @@ const remove = (dirPath) => {
     }
 };
 
-const calculateHash = async (file) => {
+const calculateHash = async (file, dirPath) => {
   let hash;
   await stream.promises.pipeline(
       file,
@@ -105,7 +110,40 @@ const calculateHash = async (file) => {
       }
   );
   console.log(hash);
+  console.log(`You are currently in ${path.dirname(dirPath)}`);
 };
+
+const compress = async (readFilePath, compressFilePath) => {
+  const readFileName = path.basename(readFilePath);
+  const readStream = fs.createReadStream(readFilePath);
+  const writeStream = fs.createWriteStream(`${compressFilePath}/${readFileName}.br`);
+  
+  const brotli = zlib.createBrotliCompress();
+  
+  const stream = await readStream.pipe(brotli).pipe(writeStream);
+  
+  stream.on('finish', () => {
+    console.log('Compress is done');
+    console.log(`You are currently in ${compressFilePath}`);
+  });
+}
+
+const decompress = async (readFilePath, decompressFilePath) => {
+  const readFileName = path.basename(readFilePath);
+  const fileNameWithoutExt = path.basename(readFileName, path.extname(readFileName));
+
+  const readStream = fs.createReadStream(readFilePath);
+  const writeStream = fs.createWriteStream(`${decompressFilePath}/${fileNameWithoutExt}`);
+
+  const brotli = zlib.createBrotliDecompress();
+
+  const stream = await readStream.pipe(brotli).pipe(writeStream);
+
+  stream.on('finish', () => {
+    console.log('Decompress is done');
+    console.log(`You are currently in ${decompressFilePath}`);
+  });
+}
 
 const initApp = () => {
   try {
@@ -129,16 +167,18 @@ const initApp = () => {
       const rm = data.toString().includes('rm');
       const osComm = data.toString().includes('os');
       const hash = data.toString().includes('hash');
+      const cmps = data.toString().includes('compress') && !data.toString().includes('decompress');
+      const dcmps = data.toString().includes('decompress');
 
-      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm && !osComm && !hash) {
-        console.log('Invalid input')
+      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm && !osComm && !hash && !cmps && !dcmps) {
+        console.log('Invalid input');
       }
 
       if (up) {
         if (userHomeDir.split('/').length > 2) {
           userHomeDir = path.join(userHomeDir, '..');
         }
-        console.log(`${userHomeDir}`)
+        console.log(`${userHomeDir}`);
       }
 
       if (cd) {
@@ -153,13 +193,12 @@ const initApp = () => {
       if (cat) {
         const readPath = path.join(`${data.toString().substring(4).trim()}`);
         const readable = fs.createReadStream(readPath);
-        const read = () => {
-          readable.on('data', (chunk) => {
-              process.stdout.write(chunk);
-          }); 
-        };
-
-        read();
+        readable.on('data', (chunk) => {
+            process.stdout.write(chunk);
+        }); 
+        readable.on('end', () => {
+          console.log(`\nYou are currently in ${path.dirname(readPath)}`);
+        });
       }
 
       if (add) {
@@ -172,7 +211,6 @@ const initApp = () => {
         const dir = path.dirname(cliArr[1]);
         const wrongNameFilePath = path.join(`${cliArr[1]}`);
         const newNameFilePath = path.join(`${dir}/${cliArr[2]}`);
-        console.log(wrongNameFilePath, newNameFilePath);
         rename(wrongNameFilePath, newNameFilePath);
       }
 
@@ -186,6 +224,10 @@ const initApp = () => {
 
         readableStream.on("data", (chunk) => { 
           writeableStream.write(chunk.toString());
+        });
+
+        readableStream.on('end', () => {
+          console.log(`You are currently in ${path.dirname(newFolderFilePath)}`);
         });
       }
 
@@ -203,7 +245,7 @@ const initApp = () => {
 
         readableStream.close();
         
-        remove(folderFilePath);
+        remove(folderFilePath, newFolderFilePath);
       }
 
       if (rm) {
@@ -218,7 +260,8 @@ const initApp = () => {
         }
         
         if (data.toString().includes('cpus')) {
-          console.log(`Overall amount of CPUS: ${os.cpus().length} CPU: ${os.cpus()}`);
+          console.log(`Overall amount of CPUS: ${os.cpus().length}`);
+          console.log(os.cpus());
         }
   
         if(data.toString().includes('homedir')) {
@@ -237,7 +280,17 @@ const initApp = () => {
       if (hash) {
         const dirPath = data.toString().trim().substring(5);
         const file = fs.createReadStream(dirPath);
-        await calculateHash(file);
+        await calculateHash(file, dirPath);
+      }
+
+      if (cmps) {
+        const cliArr = data.toString().trim().split(' ');
+        compress(cliArr[1], cliArr[2]);
+      }
+
+      if (dcmps) {
+        const cliArr = data.toString().trim().split(' ');
+        decompress(cliArr[1], cliArr[2]);
       }
       
       if (data.toString().includes('.exit')) {
@@ -245,8 +298,9 @@ const initApp = () => {
         process.exit();
       }
 
-      //after logic
-      console.log(`You are currently in ${userHomeDir}`);
+      if(up || cd || osComm) {
+        console.log(`You are currently in ${userHomeDir}`);
+      }
     });
 
     process.on('SIGINT', () => {
