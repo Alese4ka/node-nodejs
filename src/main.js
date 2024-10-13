@@ -1,6 +1,8 @@
 import path from 'path';
 import os from 'node:os';
 import fs from 'node:fs';
+import stream from 'stream';
+import crypto from 'crypto'
 
 let userHomeDir = os.homedir();
 
@@ -93,6 +95,18 @@ const remove = (dirPath) => {
     }
 };
 
+const calculateHash = async (file) => {
+  let hash;
+  await stream.promises.pipeline(
+      file,
+      crypto.createHash('sha256').setEncoding('hex'),
+      async (source) => {
+          hash = (await source.toArray())[0];
+      }
+  );
+  console.log(hash);
+};
+
 const initApp = () => {
   try {
     const indx = process.argv.findIndex((item) => {
@@ -114,8 +128,9 @@ const initApp = () => {
       const mv = data.toString().includes('mv');
       const rm = data.toString().includes('rm');
       const osComm = data.toString().includes('os');
+      const hash = data.toString().includes('hash');
 
-      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm && !osComm) {
+      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm && !osComm && !hash) {
         console.log('Invalid input')
       }
 
@@ -213,10 +228,16 @@ const initApp = () => {
         if (data.toString().includes('username')) {
           console.log(process.env.USER);
         }
-        
+
         if (data.toString().includes('architecture')) {
           console.log(process.arch);
         }  
+      }
+
+      if (hash) {
+        const dirPath = data.toString().trim().substring(5);
+        const file = fs.createReadStream(dirPath);
+        await calculateHash(file);
       }
       
       if (data.toString().includes('.exit')) {
