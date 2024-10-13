@@ -85,23 +85,19 @@ const remove = (dirPath) => {
               console.log('Operation failed');
             });
           } else {
-            console.log('kdshjfhdkfj')
             console.log('Operation failed');
           }
       }); 
     } catch (err) {
-      console.log('1')
       console.log('Operation failed');
     }
 };
 
 const initApp = () => {
   try {
-    
     const indx = process.argv.findIndex((item) => {
       return item.includes('--username');
     });
-
     const userName = process.argv[indx].substring(11);
 
     console.log(`Welcome to the File Manager, ${userName}!`);
@@ -113,12 +109,13 @@ const initApp = () => {
       const ls = data.toString().includes('ls');
       const cat = data.toString().includes('cat');
       const add = data.toString().includes('add');
-      const rn = data.toString().includes('rn');
-      const cp = data.toString().includes('cp');
+      const rn = data.toString().includes('rn') && !data.toString().includes('username');
+      const cp = data.toString().includes('cp') && !data.toString().includes('cpus');
       const mv = data.toString().includes('mv');
       const rm = data.toString().includes('rm');
+      const osComm = data.toString().includes('os');
 
-      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm) {
+      if (!up && !cd && !ls && !cat && !add && !rn && !cp && !mv && !rm && !osComm) {
         console.log('Invalid input')
       }
 
@@ -199,6 +196,29 @@ const initApp = () => {
         remove(delFilePath);
       }
 
+      if (osComm) {
+        if (data.toString().includes('EOL')) {
+          const EOL = os.EOL;
+          console.log(`EOL: ${JSON.stringify(EOL)}`);
+        }
+        
+        if (data.toString().includes('cpus')) {
+          console.log(`Overall amount of CPUS: ${os.cpus().length} CPU: ${os.cpus()}`);
+        }
+  
+        if(data.toString().includes('homedir')) {
+          console.log(os.homedir());
+        }
+
+        if (data.toString().includes('username')) {
+          console.log(process.env.USER);
+        }
+        
+        if (data.toString().includes('architecture')) {
+          console.log(process.arch);
+        }  
+      }
+      
       if (data.toString().includes('.exit')) {
         console.log('Thank you for using File Manager, Username, goodbye!');
         process.exit();
