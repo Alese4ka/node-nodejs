@@ -4,14 +4,15 @@ import fs from 'node:fs';
 import stream from 'stream';
 import crypto from 'crypto';
 import zlib from 'node:zlib';
+import { readdir } from 'node:fs/promises';
 
 let userHomeDir = os.homedir();
 
 const list = (userHomeDir) => {
   try {
-      fs.exists(userHomeDir, (e) => {
+      fs.exists(userHomeDir, async (e) => {
           if (e) {
-              const files = fs.readdirSync(userHomeDir);
+              const files = await readdir(userHomeDir);
               const fileArr = [];
               const dirArr = [];
               for (const file of files) {
@@ -49,7 +50,8 @@ const create = (dir) => {
           if (e) {
             console.log('Operation failed');
           } else {
-            fs.writeFileSync(dir, '');
+            const writeableStream = fs.createWriteStream(dir);
+            writeableStream.write('');
             console.log(`You are currently in ${path.dirname(dir)}`);
           }
       }); 
@@ -87,9 +89,11 @@ const remove = (dirPath, newDirPath) => {
   try {
       fs.exists(dirPath, (e) => {
           if (e) {
-            fs.rmSync(dirPath, { recursive: true }, (err) => {
-              console.log('Operation failed');
-            });
+            fs.unlink(dirPath, (err) => {
+              if (err) {
+                console.log('Operation failed');
+              }
+            })
             console.log(`You are currently in ${newDirPath ? path.dirname(newDirPath) : path.dirname(dirPath)}`);
           } else {
             console.log('Operation failed');
