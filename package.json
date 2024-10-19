@@ -1,0 +1,11 @@
+{
+  "name": "node-nodejs-crud",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.ts"
+  }
+}
