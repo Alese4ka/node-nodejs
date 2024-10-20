@@ -1,11 +1,19 @@
 {
-  "name": "node-nodejs-crud",
+  "name": "node-nodejs",
   "version": "1.0.0",
   "engines": {
     "node": ">=20.0.0"
   },
-  "type": "module",
   "scripts": {
-    "start": "node src/index.ts"
+    "start": "nodemon --watch src --exec ts-node src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "nodemon": "^3.1.7",
+    "uuid": "^10.0.0"
   }
 }
