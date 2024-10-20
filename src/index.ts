@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { getUser } from './utils/get-user';
 import { User } from './utils/interfaces';
 
+const port = process.env.PORT; 
 const dataPath = path.join('./src/data.json'); 
 
 const uuid = uuidv4();
@@ -33,69 +34,96 @@ if (cluster.isPrimary) {
   });
 } else {
   http.createServer((req, res) => {
-    if(req.url) {
-      const urlparse = url.parse(req.url, true);
-      const userId = urlparse.pathname!.split('/').pop();
-
-      if(urlparse.pathname == '/api/users' && req.method == 'GET') {
-        res.writeHead(200, {'Content-Type': 'application/json'}); 
-        res.end(JSON.stringify(users, null, 2));
-      }
-
-      if(urlparse.pathname?.includes('/api/users/') && req.method == 'GET' && userId) {
-        if (userId && isValidUUID(userId)) {
-          if (users.find((user: {id: string}) => user.id === userId)) {
-            res.writeHead(200, {'Content-Type': 'application/json'}); 
-            res.end(JSON.stringify(users.find((user: {id: string}) => user.id === userId), null, 2));
-          } else {
-            res.writeHead(404, {'Content-Type': 'application/json'}); 
-            res.end("User's doesn't exist");
-          }
-        } else {
-          res.writeHead(400, {'Content-Type': 'application/json'}); 
-          res.end("User's id is invalid");
+    try {
+      if(req.url) {
+        const urlparse = url.parse(req.url, true);
+        const userId = urlparse.pathname!.split('/').pop();
+  
+        if(urlparse.pathname == '/api/users' && req.method == 'GET') {
+          res.writeHead(200, {'Content-Type': 'application/json'}); 
+          res.end(JSON.stringify(users, null, 2));
         }
-      }
-
-      if (urlparse.pathname == '/api/users' && req.method == 'POST'){
-        let body = '';
-
-        req.on('data', chunk => {
-          body += chunk.toString();
-        });
-        
+  
+        if(urlparse.pathname?.includes('/api/users/') && req.method == 'GET' && userId) {
+          if (userId && isValidUUID(userId)) {
+            if (users.find((user: {id: string}) => user.id === userId)) {
+              res.writeHead(200, {'Content-Type': 'application/json'}); 
+              res.end(JSON.stringify(users.find((user: {id: string}) => user.id === userId), null, 2));
+            } else {
+              res.writeHead(404, {'Content-Type': 'application/json'}); 
+              res.end("User's doesn't exist");
+            }
+          } else {
+            res.writeHead(400, {'Content-Type': 'application/json'}); 
+            res.end("User's id is invalid");
+          }
+        }
+  
+        if (urlparse.pathname == '/api/users' && req.method == 'POST'){
+          let body = '';
+  
+          req.on('data', chunk => {
+            body += chunk.toString();
+          });
+          
+            req.on('end', () => {
+              const parseBody = JSON.parse(body);
+              if(parseBody.username && parseBody.age && parseBody.hobbies) {
+                const newUser = {
+                  id: uuid,
+                  ...parseBody
+                };
+      
+                users.push(newUser);
+      
+                const writableStream = fs.createWriteStream(dataPath);
+                writableStream.write(JSON.stringify(users, null, 2));
+                res.writeHead(201, {'Content-Type': 'application/json'}); 
+                res.end('User was created');
+              } else {
+                res.writeHead(400, {'Content-Type': 'application/json'}); 
+                res.end('Request body does not contain required fields');
+              }
+            });
+        }
+  
+        if (urlparse.pathname?.includes('/api/users/') && userId && req.method == 'PUT') {
+          let body = '';
+  
+          req.on('data', chunk => {
+            body += chunk.toString();
+          });
+          
           req.on('end', () => {
             const parseBody = JSON.parse(body);
-            if(parseBody.username && parseBody.age && parseBody.hobbies) {
-              const newUser = {
-                id: uuid,
-                ...parseBody
-              };
-    
-              users.push(newUser);
-    
-              const writableStream = fs.createWriteStream(dataPath);
-              writableStream.write(JSON.stringify(users, null, 2));
-              res.writeHead(201, {'Content-Type': 'application/json'}); 
-              res.end('User was created');
-            } else {
-              res.writeHead(400, {'Content-Type': 'application/json'}); 
-              res.end('Request body does not contain required fields');
-            }
-          });
-      }
-
-      if (urlparse.pathname?.includes('/api/users/') && userId && req.method == 'PUT') {
-        let body = '';
-
-        req.on('data', chunk => {
-          body += chunk.toString();
-        });
+              const response = getUser(userId, users);
+  
+              if (typeof response === 'string') {
+                res.writeHead(400, {'Content-Type': 'application/json'}); 
+                res.end(response);
+              } else if (!response) {
+                res.writeHead(404, {'Content-Type': 'application/json'}); 
+                res.end("User's doesn't exist");
+              } else {
+                const newUser = {
+                  ...response,
+                  ...parseBody
+                };
         
-        req.on('end', () => {
-          const parseBody = JSON.parse(body);
+                users = users.filter((user) => user.id !== userId);
+                users.push(newUser);
+        
+                const writableStream = fs.createWriteStream(dataPath);
+                writableStream.write(JSON.stringify(users, null, 2));
+                res.writeHead(200, {'Content-Type': 'application/json'}); 
+                res.end('User was updated');
+                }
+          });
+        }
+  
+        if(urlparse.pathname?.includes('/api/users/') && userId && req.method == 'DELETE') {
             const response = getUser(userId, users);
-
+  
             if (typeof response === 'string') {
               res.writeHead(400, {'Content-Type': 'application/json'}); 
               res.end(response);
@@ -103,41 +131,24 @@ if (cluster.isPrimary) {
               res.writeHead(404, {'Content-Type': 'application/json'}); 
               res.end("User's doesn't exist");
             } else {
-              const newUser = {
-                ...response,
-                ...parseBody
-              };
-      
               users = users.filter((user) => user.id !== userId);
-              users.push(newUser);
-      
               const writableStream = fs.createWriteStream(dataPath);
               writableStream.write(JSON.stringify(users, null, 2));
-              res.writeHead(200, {'Content-Type': 'application/json'}); 
-              res.end('User was updated');
-              }
-        });
+              res.writeHead(204, {'Content-Type': 'application/json'}); 
+              res.end('User was deleted');
+            }
+        }
+  
+        if(!urlparse.pathname?.includes('/api/users/')) {
+          res.writeHead(404, {'Content-Type': 'application/json'}); 
+          res.end("Information doesn't found. Please check your request");
+        }
       }
-
-      if(urlparse.pathname?.includes('/api/users/') && userId && req.method == 'DELETE') {
-          const response = getUser(userId, users);
-
-          if (typeof response === 'string') {
-            res.writeHead(400, {'Content-Type': 'application/json'}); 
-            res.end(response);
-          } else if (!response) {
-            res.writeHead(404, {'Content-Type': 'application/json'}); 
-            res.end("User's doesn't exist");
-          } else {
-            users = users.filter((user) => user.id !== userId);
-            const writableStream = fs.createWriteStream(dataPath);
-            writableStream.write(JSON.stringify(users, null, 2));
-            res.writeHead(204, {'Content-Type': 'application/json'}); 
-            res.end('User was deleted');
-          }
-      }
+    } catch {
+      res.writeHead(500, {'Content-Type': 'application/json'}); 
+      res.end("Sorry. Server is unreachable. Try later.");
     }
-  }).listen(4000);
+  }).listen(port);
 
   console.log(`Worker process is running on PID: ${process.pid}`);
 }
