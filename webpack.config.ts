@@ -2,30 +2,30 @@ import { Configuration } from "webpack";
 import { resolve } from "path";
 
 const config: Configuration = {
-  mode: "production", // Sets bundling mode to 'none' (no optimizations).
+  mode: "production", 
   entry: {
-    bundle: "./src/index.ts", // Entry point of the application.
+    bundle: "./src/index.ts",
   },
-  target: "node", // Bundles code for Node.js environment.
+  target: "node", 
   module: {
     rules: [
       {
-        exclude: /node_modules/, // Excludes node_modules from processing.
+        exclude: /node_modules/, 
         use: {
-          loader: "ts-loader", // Processes TypeScript files.
+          loader: "ts-loader", 
           options: {
-            transpileOnly: true, // Speeds up compilation by skipping type checking.
+            transpileOnly: true, 
           },
         },
       },
     ],
   },
   resolve: {
-    extensions: [".tsx", ".ts", ".js"], // Resolves these file extensions.
+    extensions: [".tsx", ".ts", ".js"], 
   },
   output: {
-    filename: "[name].js", // Names output file after its entry point ('bundle.js').
-    path: resolve(__dirname, "dist"), // Output directory for the bundled files.
+    filename: "[name].js", 
+    path: resolve(__dirname, "dist"),
   },
 };
 export default config;
