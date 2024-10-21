@@ -3,15 +3,14 @@ import url from 'url';
 import fs from 'node:fs';
 import cluster from 'cluster';
 import os from 'node:os';
-import querystring from 'querystring';
-import { readFile } from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { validate as isValidUUID } from 'uuid';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { getUser } from './utils/get-user.ts';
 import { User } from './utils/interfaces.ts';
+import dotenv from 'dotenv';
 
+dotenv.config();
 const port = process.env.PORT; 
 const dataPath = path.join('./src/data.json'); 
 
@@ -157,8 +156,9 @@ if (cluster.isPrimary) {
   });
 } else {
   if(port && cluster.worker) {
-    const unicPort = port + cluster.worker.id; 
+    let unicPort = port;
     server.listen(unicPort);
+    unicPort = port.slice(0, 3) + cluster.worker.id; 
   }
   console.log(`Worker process is running on PID: ${process.pid}`);
 }

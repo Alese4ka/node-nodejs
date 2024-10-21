@@ -1,6 +1,5 @@
 import http from 'http';
 import { server } from '../index';
-import url from 'url';
 
 describe('Test API', () => {
   let testServer: http.Server;
